@@ -1,0 +1,20 @@
+package com.example.MultiAdminProj;
+
+public enum Permission {
+    ADMIN_CREATE,
+    ADMIN_READ,
+    ADMIN_UPDATE,
+    ADMIN_DELETE,
+    STUDENT_CREATE,
+    STUDENT_READ,
+    STUDENT_UPDATE,
+    STUDENT_DELETE,
+    ROLE_CREATE,
+    ROLE_READ,
+    ROLE_UPDATE,
+    ROLE_DELETE,
+    SUBJECT_CREATE,
+    SUBJECT_READ,
+    SUBJECT_UPDATE,
+    SUBJECT_DELETE
+}
