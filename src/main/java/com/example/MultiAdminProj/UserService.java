@@ -3,6 +3,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
@@ -75,7 +76,75 @@ public class UserService {
         return userRepository.findAll();
     }
 
+
+
     public void delete(String username) {
         userRepository.deleteById(username);
+    }
+
+    @Transactional
+    public User updateUserRole(String username, Role role) {
+        // Get current authenticated user for permission checking
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findById(currentUsername)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+
+        // Find the target user
+        User user = userRepository.findById(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+
+        // Check if the role already exists
+        Role existingRole = roleRepository.findById(role.getName()).orElse(null);
+
+        if (existingRole == null) {
+            // Role doesn't exist, create it with the provided permissions
+            // Check if current user has permissions to assign all permissions in the new role
+            for (Permission permission : role.getPermissions()) {
+                if (!userPermissions.contains(permission)) {
+                    throw new SecurityException("Cannot create role with permission " + permission + " that you do not have");
+                }
+            }
+
+            existingRole = roleRepository.save(role);
+            System.out.println("Created new role: " + existingRole.getName());
+        } else {
+            // Role exists, use its existing permissions
+            System.out.println("Using existing role: " + existingRole.getName() +
+                    " with its existing permissions: " + existingRole.getPermissions());
+
+            // Check if current user has permissions to assign all permissions in the existing role
+            for (Permission permission : existingRole.getPermissions()) {
+                if (!userPermissions.contains(permission)) {
+                    throw new SecurityException("Cannot assign existing role with permission " +
+                            permission + " that you do not have");
+                }
+            }
+        }
+
+        // Store old role name for logging
+        String oldRoleName = user.getRole() != null ? user.getRole().getName() : "none";
+
+        // Update the role
+        user.setRole(existingRole);
+        User updatedUser = userRepository.save(user);
+
+        // If new role is student and old role wasn't, create student record
+        if ("student".equalsIgnoreCase(existingRole.getName()) &&
+                !"student".equalsIgnoreCase(oldRoleName)) {
+
+            if (!studentRepository.existsById(username)) {
+                Student newStudent = new Student();
+                newStudent.setRollNo(username);
+                newStudent.setName(username);
+                studentRepository.save(newStudent);
+                System.out.println("Created corresponding Student record for user: " + username);
+            }
+        }
+
+        System.out.println("Updated role for user " + username + " from " + oldRoleName +
+                " to " + existingRole.getName() + " with permissions: " + existingRole.getPermissions());
+        return updatedUser;
     }
 }

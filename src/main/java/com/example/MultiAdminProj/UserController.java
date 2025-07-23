@@ -44,4 +44,11 @@ public class UserController {
     public void delete(@PathVariable String username) {
         userService.delete(username);
     }
+
+
+    @PutMapping("/{username}")
+    @PreAuthorize("hasAuthority('ADMIN_UPDATE')")
+    public User updateUserRole(@RequestBody Role role, @PathVariable String username) {
+        return userService.updateUserRole(username, role);
+    }
 }
