@@ -15,15 +15,15 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Allow your Heroku frontend
-        config.setAllowedOriginPatterns(List.of(
-                "https://rbacapp-93834eb91813.herokuapp.com"
-        ));
+        config.setAllowedOriginPatterns(List.of("*"));
 
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With"));
+
+        config.setAllowedHeaders(List.of("*"));
+
+        config.setAllowCredentials(false);
+
         config.setExposedHeaders(List.of("Authorization"));
-        config.setAllowCredentials(true);  // allow cookies/credentials if needed
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
