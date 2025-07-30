@@ -29,7 +29,6 @@ public class UserController {
                 "Please keep this information safe.\n\nRegards,\nTeam";
 
         emailService.sendEmail("vipulyadav2k@gmail.com", subject, body);
-
         return savedUser;
     }
 

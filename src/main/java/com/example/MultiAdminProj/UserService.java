@@ -40,6 +40,7 @@ public class UserService {
                 }
             }
 
+
             // Check if role already exists, if not create it
             Role existingRole = roleRepository.findById(roleToAssign.getName()).orElse(null);
 
