@@ -28,7 +28,7 @@ public class UserController {
                 "Username: " + user.getUsername() + "\nPassword: " + rawPassword + "\n\n" +
                 "Please keep this information safe.\n\nRegards,\nTeam";
 
-        emailService.sendEmail("vipulyadav2k@gmail.com", subject, body);
+        emailService.sendEmail(user.getEmail(), subject, body);
         return savedUser;
     }
 
