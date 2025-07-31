@@ -1,5 +1,6 @@
 package com.example.MultiAdminProj;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -22,7 +23,10 @@ public class User {
 
 
     @CreationTimestamp
+    @Column(updatable = false, nullable = false)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private LocalDateTime createdAt;
+
 
     @ManyToOne(fetch = FetchType.EAGER)
     private Role role;
