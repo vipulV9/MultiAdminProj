@@ -5,6 +5,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -18,15 +19,14 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN_CREATE')")
-    public User create(@RequestBody User user) {
-        String rawPassword = user.getPassword();
+    public User create(@Valid @RequestBody User user) {
         User savedUser = userService.saveUser(user);
 
-        // Send email after successful creation
+        // Send email after successful creation (without password for security)
         String subject = "Account Created Successfully";
         String body = "Hello " + user.getUsername() + ",\n\nYour account has been created.\n" +
-                "Username: " + user.getUsername() + "\nPassword: " + rawPassword + "\n\n" +
-                "Please keep this information safe.\n\nRegards,\nTeam";
+                "Username: " + user.getUsername() + "\n\n" +
+                "Please contact your administrator for your password.\n\nRegards,\nTeam";
 
         emailService.sendEmail(user.getEmail(), subject, body);
         return savedUser;
@@ -47,7 +47,7 @@ public class UserController {
 
     @PutMapping("/{username}")
     @PreAuthorize("hasAuthority('ADMIN_UPDATE')")
-    public User updateUserRole(@RequestBody Role role, @PathVariable String username) {
+    public User updateUserRole(@Valid @RequestBody Role role, @PathVariable String username) {
         return userService.updateUserRole(username, role);
     }
 }

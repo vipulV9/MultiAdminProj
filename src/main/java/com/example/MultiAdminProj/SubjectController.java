@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -14,7 +15,7 @@ public class SubjectController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('SUBJECT_CREATE')")
-    public Subject create(@RequestBody Subject s) {
+    public Subject create(@Valid @RequestBody Subject s) {
         return subjectService.save(s);
     }
 
@@ -22,6 +23,13 @@ public class SubjectController {
     @PreAuthorize("hasAuthority('SUBJECT_READ')")
     public List<Subject> getAll() {
         return subjectService.getAll();
+    }
+
+    @PutMapping("/{code}")
+    @PreAuthorize("hasAuthority('SUBJECT_UPDATE')")
+    public Subject update(@PathVariable String code, @Valid @RequestBody Subject subject) {
+        subject.setCode(code); // Ensure the code matches the path variable
+        return subjectService.save(subject);
     }
 
     @DeleteMapping("/{code}")
