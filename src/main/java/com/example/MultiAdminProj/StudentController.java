@@ -30,4 +30,16 @@ public class StudentController {
     public void delete(@PathVariable String rollNo) {
         studentService.delete(rollNo);
     }
+
+    @PutMapping("/{rollNo}")
+    @PreAuthorize("hasAuthority('STUDENT_UPDATE')")
+    public Student update(@PathVariable String rollNo, @RequestBody Student student) {
+        return studentService.update(rollNo, student);
+    }
+
+    @PutMapping("/{rollNo}/change-rollno")
+    @PreAuthorize("hasAuthority('STUDENT_UPDATE')")
+    public Student changeRollNo(@PathVariable String rollNo, @RequestBody Student student) {
+        return studentService.changeRollNo(rollNo, student);
+    }
 }

@@ -29,4 +29,16 @@ public class SubjectController {
     public void delete(@PathVariable String code) {
         subjectService.delete(code);
     }
+
+    @PutMapping("/{code}")
+    @PreAuthorize("hasAuthority('SUBJECT_UPDATE')")
+    public Subject update(@PathVariable String code, @RequestBody Subject subject) {
+        return subjectService.update(code, subject);
+    }
+
+    @PutMapping("/{code}/change-code")
+    @PreAuthorize("hasAuthority('SUBJECT_UPDATE')")
+    public Subject changeCode(@PathVariable String code, @RequestBody Subject subject) {
+        return subjectService.changeCode(code, subject);
+    }
 }
