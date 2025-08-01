@@ -31,7 +31,10 @@ public class AuthController {
     private UserDetailsService userDetailsService;
 
     @Autowired
-    private UserService userService;
+    private UserRepository userRepository;
+
+    @Autowired
+    private BCryptPasswordEncoder passwordEncoder;
 
     @PostMapping("/login")
     public Map<String, String> login(@RequestBody AuthRequest request) {
@@ -55,7 +58,9 @@ public class AuthController {
             // Note: Role should be set separately through user management endpoints
             // for security reasons. This registration creates users without roles.
             
-            userService.saveUser(user);
+            // Encode password before saving
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+            User savedUser = userRepository.save(user);
             
             return ResponseEntity.ok(Map.of("message", "User registered successfully"));
         } catch (Exception e) {

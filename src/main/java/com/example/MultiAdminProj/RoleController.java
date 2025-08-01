@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -14,7 +15,7 @@ public class RoleController {
 
     @PostMapping
     @PreAuthorize("hasAuthority('ROLE_CREATE')")
-    public Role create(@RequestBody Role role) {
+    public Role create(@Valid @RequestBody Role role) {
         return roleService.saveRole(role);
     }
 
@@ -22,6 +23,13 @@ public class RoleController {
     @PreAuthorize("hasAuthority('ROLE_READ')")
     public List<Role> getAll() {
         return roleService.getAll();
+    }
+
+    @PutMapping("/{name}")
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
+    public Role update(@PathVariable String name, @Valid @RequestBody Role role) {
+        role.setName(name); // Ensure the name matches the path variable
+        return roleService.saveRole(role);
     }
 
     @DeleteMapping("/{name}")
