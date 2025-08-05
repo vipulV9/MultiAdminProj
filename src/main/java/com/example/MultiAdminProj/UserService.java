@@ -20,6 +20,9 @@ public class UserService {
     private StudentRepository studentRepository;
 
     @Autowired
+    private EmailService emailService;
+
+    @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
     public User saveUser(User user) {
@@ -147,5 +150,30 @@ public class UserService {
         System.out.println("Updated role for user " + username + " from " + oldRoleName +
                 " to " + existingRole.getName() + " with permissions: " + existingRole.getPermissions());
         return updatedUser;
+    }
+
+
+    @Transactional
+    public void resetPassword(String username, String email, String newPassword) {
+        User user = userRepository.findById(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Verify email matches
+        if (!user.getEmail().equals(email)) {
+            throw new RuntimeException("Email does not match records for this username");
+        }
+
+        // Set new password
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Send email notification
+        String subject = "Password Reset Confirmation";
+        String body = "Hello " + username + ",\n\n" +
+                "Your password has been reset successfully.\n\n" +
+                "If you did not request this change, please contact support immediately.\n\n" +
+                "Regards,\nTeam";
+
+        emailService.sendEmail(email, subject, body);
     }
 }

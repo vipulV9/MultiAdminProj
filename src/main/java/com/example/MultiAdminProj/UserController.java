@@ -1,8 +1,10 @@
 package com.example.MultiAdminProj;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,6 +17,7 @@ public class UserController {
 
     @Autowired
     private EmailService emailService;
+
 
     @PostMapping
     @PreAuthorize("hasAuthority('ADMIN_CREATE')")
@@ -49,5 +52,15 @@ public class UserController {
     @PreAuthorize("hasAuthority('ADMIN_UPDATE')")
     public User updateUserRole(@RequestBody Role role, @PathVariable String username) {
         return userService.updateUserRole(username, role);
+    }
+
+    @PutMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            userService.resetPassword(request.getUsername(), request.getEmail(), request.getNewPassword());
+            return ResponseEntity.ok("Password has been reset successfully");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }
