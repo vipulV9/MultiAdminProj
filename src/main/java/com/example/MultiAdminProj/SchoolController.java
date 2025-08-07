@@ -19,7 +19,6 @@ public class SchoolController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('SCHOOL_READ')")
     public List<School> getAll() {
         return schoolService.getAll();
     }
