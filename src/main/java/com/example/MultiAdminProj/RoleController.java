@@ -1,6 +1,7 @@
 package com.example.MultiAdminProj;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +18,16 @@ public class RoleController {
     public Role create(@RequestBody Role role) {
         return roleService.saveRole(role);
     }
+
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
+    @PutMapping("/{roleName}")
+    public ResponseEntity<Role> updateRole(
+            @PathVariable String roleName,
+            @RequestBody Role updatedRole) {
+        Role role = roleService.updateRole(roleName, updatedRole);
+        return ResponseEntity.ok(role);
+    }
+
 
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_READ')")

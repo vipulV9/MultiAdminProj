@@ -28,6 +28,8 @@ public class UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        System.out.println("Authenticated user: " + username + ", School ID: " + currentUser.getSchool().getId());
+        System.out.println("User school ID: " + user.getSchool().getId() + ", Role school ID: " + user.getRole().getSchool().getId());
 
         Role roleToAssign = user.getRole();
         if (roleToAssign != null) {
@@ -36,19 +38,26 @@ public class UserService {
             }
 
             // Ensure the role belongs to the same school as the user
-            if (!roleToAssign.getSchool().equals(user.getSchool())) {
+            if (!roleToAssign.getSchool().getId().equals(user.getSchool().getId())) {
                 throw new IllegalArgumentException("Role must belong to the same school as the user");
             }
 
-            Set<Permission> userPermissions = currentUser.getRole().getPermissions();
-            for (Permission permission : roleToAssign.getPermissions()) {
-                if (!userPermissions.contains(permission)) {
-                    throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
-                }
-            }
-
+            // Fetch the existing role from the database
             Role existingRole = roleRepository.findByNameAndSchool(roleToAssign.getName(), user.getSchool())
                     .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleToAssign.getName()));
+
+            // Check permissions of the existing role
+            Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+            if (existingRole.getPermissions() != null) {
+                for (Permission permission : existingRole.getPermissions()) {
+                    if (!userPermissions.contains(permission)) {
+                        throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
+                    }
+                }
+            } else {
+                throw new IllegalArgumentException("Role " + existingRole.getName() + " has no permissions defined");
+            }
+
             user.setRole(existingRole);
         }
 
