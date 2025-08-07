@@ -187,12 +187,13 @@ public class StudentService {
         return student;
     }
 
+
+    @Transactional(readOnly = true)
     public List<Student> getAll() {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
-
-        return studentRepo.findBySchool(currentUser.getSchool());
+        return studentRepo.findAllApprovedBySchool(currentUser.getSchool());
     }
 
     public List<Student> getPendingStudents() {

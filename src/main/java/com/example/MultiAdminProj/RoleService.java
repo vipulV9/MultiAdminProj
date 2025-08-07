@@ -55,6 +55,38 @@ public class RoleService {
         return roleRepo.save(role);
     }
 
+    public Role updateRole(String roleName, Role updatedRole) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findById(username)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        Role existingRole = roleRepo.findByNameAndSchool(roleName, currentUser.getSchool())
+                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleName));
+
+        // Ensure user is updating a role within their own school
+        if (!existingRole.getSchool().equals(currentUser.getSchool())) {
+            throw new SecurityException("Cannot update role from a different school");
+        }
+
+        // Check if user has ROLE_UPDATE permission
+        if (!currentUser.getRole().getPermissions().contains(Permission.ROLE_UPDATE)) {
+            throw new SecurityException("You do not have permission to update roles");
+        }
+
+        // Ensure the user is not assigning permissions they don't have
+        Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+        for (Permission permission : updatedRole.getPermissions()) {
+            if (!userPermissions.contains(permission)) {
+                throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
+            }
+        }
+
+        // Update the existing role
+        existingRole.setPermissions(updatedRole.getPermissions());
+        return roleRepo.save(existingRole);
+    }
+
+
     public List<Role> getAll() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(username)

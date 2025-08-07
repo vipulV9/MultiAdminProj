@@ -2,6 +2,7 @@ package com.example.MultiAdminProj;
 
 public enum Permission {
     ROLE_CREATE,
+    ROLE_UPDATE,
     ROLE_READ,
     ROLE_DELETE,
     STUDENT_CREATE,
