@@ -29,16 +29,22 @@ public class AuthController {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @PostMapping("/login")
-    public Map<String, String> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<Map<String, String>> login(@RequestBody AuthRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
         );
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
-        String token = jwtUtil.generateToken(userDetails);
+        User user = userRepository.findById(request.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Long schoolId = user.getSchool() != null ? user.getSchool().getId() : null;
+        String token = jwtUtil.generateToken(userDetails, schoolId);
 
-        return Map.of("token", token);
+        return ResponseEntity.ok(Map.of("token", token));
     }
 }
 

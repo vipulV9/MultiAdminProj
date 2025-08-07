@@ -41,26 +41,36 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader = request.getHeader("Authorization");
         String token = null;
         String username = null;
+        final Long schoolId; // Declared as final to ensure it is effectively final
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
                 username = jwtUtil.extractUsername(token);
+                schoolId = jwtUtil.extractSchoolId(token); // Assign once, never reassign
             } catch (Exception e) {
                 logger.error("Token extraction error: " + e.getMessage());
+                filterChain.doFilter(request, response);
+                return;
             }
+        } else {
+            schoolId = null; // Assign in case no token is present
         }
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             if (jwtUtil.isTokenValid(token)) {
-                // Load user details to get fresh authorities
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-
-                var authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails.getUsername(),
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails,
                         null,
                         userDetails.getAuthorities()
-                );
+                ) {
+                    private final Long authSchoolId = schoolId;
+
+                    public Long getSchoolId() {
+                        return authSchoolId;
+                    }
+                };
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }

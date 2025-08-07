@@ -15,10 +15,23 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+
+        if ("STUDENT".equalsIgnoreCase(user.getRole().getName())) {
+            Student student = studentRepository.findById(username)
+                    .orElseThrow(() -> new UsernameNotFoundException("Student not found: " + username));
+            if (!"APPROVED".equals(student.getApprovalStatus())) {
+                throw new UsernameNotFoundException("Student not approved: " + username);
+            }
+        }
+
+        Long schoolId = user.getSchool() != null ? user.getSchool().getId() : null;
 
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
@@ -26,6 +39,10 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getRole().getPermissions().stream()
                         .map(permission -> new SimpleGrantedAuthority(permission.name()))
                         .collect(Collectors.toList())
-        );
+        ) {
+            public Long getSchoolId() {
+                return schoolId;
+            }
+        };
     }
 }

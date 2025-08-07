@@ -28,12 +28,13 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, Long schoolId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("authorities", userDetails.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
+        claims.put("schoolId", schoolId);
 
         return Jwts.builder()
                 .claims(claims)
@@ -55,6 +56,10 @@ public class JwtUtil {
 
     public String extractUsername(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public Long extractSchoolId(String token) {
+        return extractAllClaims(token).get("schoolId", Long.class);
     }
 
     public Claims extractAllClaims(String token) {

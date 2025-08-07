@@ -21,13 +21,14 @@ public class User {
     private String password;
     private String email;
 
-
     @CreationTimestamp
     @Column(updatable = false, nullable = false)
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private LocalDateTime createdAt;
 
-
     @ManyToOne(fetch = FetchType.EAGER)
     private Role role;
+
+    @ManyToOne
+    private School school;
 }

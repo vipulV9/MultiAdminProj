@@ -11,8 +11,8 @@ public class SubjectService {
     @Autowired
     private SubjectRepository subjectRepo;
 
-    public Subject save(Subject s) {
-        return subjectRepo.save(s);
+    public Subject save(Subject subject) {
+        return subjectRepo.save(subject);
     }
 
     public List<Subject> getAll() {
@@ -28,7 +28,6 @@ public class SubjectService {
         Subject existingSubject = subjectRepo.findById(code)
                 .orElseThrow(() -> new RuntimeException("Subject not found with code: " + code));
 
-        // Only update non-ID fields
         if (updatedSubject.getName() != null) {
             existingSubject.setName(updatedSubject.getName());
         }
@@ -39,7 +38,7 @@ public class SubjectService {
     @Transactional
     public Subject changeCode(String oldCode, Subject subject) {
         if (subject.getCode() == null || subject.getCode().isEmpty()) {
-            throw new IllegalArgumentException("New subject code cannot be empty");
+            throw new IllegalArgumentException("New code cannot be empty");
         }
 
         Subject existingSubject = subjectRepo.findById(oldCode)
@@ -49,17 +48,13 @@ public class SubjectService {
             throw new IllegalArgumentException("Subject already exists with code: " + subject.getCode());
         }
 
-        // Create new subject with new code but keep other data
         Subject newSubject = new Subject();
         newSubject.setCode(subject.getCode());
         newSubject.setName(subject.getName() != null ? subject.getName() : existingSubject.getName());
 
-        // Save new subject
-        Subject savedSubject = subjectRepo.save(newSubject);
-
-        // Delete old subject
+        subjectRepo.save(newSubject);
         subjectRepo.deleteById(oldCode);
 
-        return savedSubject;
+        return newSubject;
     }
 }
