@@ -30,17 +30,9 @@ public class StudentService {
     private BCryptPasswordEncoder passwordEncoder;
 
     @Transactional
-    public String registerStudent(StudentRegistrationRequest request) {
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findById(currentUsername)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
-
-        School school = schoolRepository.findById(request.getSchoolId())
-                .orElseThrow(() -> new IllegalArgumentException("School not found"));
-
-        if (!school.equals(currentUser.getSchool())) {
-            throw new SecurityException("Cannot register student to a different school");
-        }
+    public String registerStudent(Long schoolId, StudentRegistrationRequest request) {
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new IllegalArgumentException("School not found with ID: " + schoolId));
 
         String rollNo = generateUniqueRollNo(school.getId(), request.getClassGrade());
         String rawPassword = generateRandomPassword();
@@ -54,7 +46,7 @@ public class StudentService {
                 .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
         user.setRole(studentRole);
 
-        user.setSchool(school); // Set school for the user
+        user.setSchool(school);
         Student student = new Student();
         student.setRollNo(rollNo);
         student.setName(request.getName());

@@ -68,8 +68,7 @@ public class RoleService {
             throw new SecurityException("Cannot update role from a different school");
         }
 
-        // Check if user has ROLE_UPDATE permission
-        if (!currentUser.getRole().getPermissions().contains(Permission.ROLE_UPDATE)) {
+        if (!currentUser.getRole().getPermissions().contains(Permission.ROLE_CREATE)) {
             throw new SecurityException("You do not have permission to update roles");
         }
 

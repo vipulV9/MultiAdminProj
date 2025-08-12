@@ -19,7 +19,7 @@ public class RoleController {
         return roleService.saveRole(role);
     }
 
-    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
+  @PreAuthorize("hasAuthority('ROLE_UPDATE')")
     @PutMapping("/{roleName}")
     public ResponseEntity<Role> updateRole(
             @PathVariable String roleName,
@@ -27,7 +27,6 @@ public class RoleController {
         Role role = roleService.updateRole(roleName, updatedRole);
         return ResponseEntity.ok(role);
     }
-
 
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_READ')")
@@ -40,4 +39,5 @@ public class RoleController {
     public void delete(@PathVariable String name) {
         roleService.delete(name);
     }
+
 }

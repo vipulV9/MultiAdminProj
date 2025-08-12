@@ -14,9 +14,9 @@ public class StudentController {
     @Autowired
     private StudentService studentService;
 
-    @PostMapping("/register")
-    public ResponseEntity<String> registerStudent(@RequestBody StudentRegistrationRequest request) {
-        String username = studentService.registerStudent(request);
+    @PostMapping("/register/{schoolId}")
+    public ResponseEntity<String> registerStudent(@PathVariable Long schoolId, @RequestBody StudentRegistrationRequest request) {
+        String username = studentService.registerStudent(schoolId, request);
         return ResponseEntity.ok("Registration successful for " + username + ". Awaiting approval.");
     }
 
@@ -40,13 +40,13 @@ public class StudentController {
     }
 
     @PostMapping("/approve/{rollNo}")
-    @PreAuthorize("hasAuthority('STUDENT_APPROVE')")
+    @PreAuthorize("hasAuthority('STUDENT_APPROVEORREJECT')")
     public Student approveStudent(@PathVariable String rollNo) {
         return studentService.approveStudent(rollNo);
     }
 
     @PostMapping("/reject/{rollNo}")
-    @PreAuthorize("hasAuthority('STUDENT_REJECT')")
+    @PreAuthorize("hasAuthority('STUDENT_APPROVEORREJECT')")
     public Student rejectStudent(@PathVariable String rollNo) {
         return studentService.rejectStudent(rollNo);
     }
