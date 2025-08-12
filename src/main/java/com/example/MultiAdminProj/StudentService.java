@@ -1,11 +1,17 @@
 package com.example.MultiAdminProj;
 
+import com.opencsv.CSVReader;
+import com.opencsv.exceptions.CsvValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
@@ -282,5 +288,85 @@ public class StudentService {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
         return password.toString();
+    }
+
+
+    @Transactional
+    public void bulkUploadStudents(Long schoolId, MultipartFile file) throws Exception {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User currentUser = userRepository.findById(currentUsername)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        School school = schoolRepository.findById(schoolId)
+                .orElseThrow(() -> new IllegalArgumentException("School not found with ID: " + schoolId));
+
+        if (!school.equals(currentUser.getSchool())) {
+            throw new SecurityException("Cannot upload students to a different school");
+        }
+
+        List<Student> students = new ArrayList<>();
+        List<User> users = new ArrayList<>();
+
+        try (CSVReader csvReader = new CSVReader(new BufferedReader(new InputStreamReader(file.getInputStream())))) {
+            String[] headers = csvReader.readNext(); // Read header row
+            if (headers == null || headers.length < 3) {
+                throw new IllegalArgumentException("CSV file must contain name, email, and classGrade columns");
+            }
+
+            String[] row;
+            while ((row = csvReader.readNext()) != null) {
+                if (row.length < 3) {
+                    continue; // Skip invalid rows
+                }
+
+                String name = row[0].trim();
+                String email = row[1].trim();
+                String classGrade = row[2].trim();
+
+                if (name.isEmpty() || email.isEmpty() || classGrade.isEmpty()) {
+                    continue; // Skip rows with empty fields
+                }
+
+                if (!school.getAvailableClasses().contains(classGrade)) {
+                    throw new IllegalArgumentException("Class " + classGrade + " not available in this school");
+                }
+
+                String rollNo = generateUniqueRollNo(school.getId(), classGrade);
+                String rawPassword = generateRandomPassword();
+
+                User user = new User();
+                user.setUsername(rollNo);
+                user.setEmail(email);
+                user.setPassword(passwordEncoder.encode(rawPassword));
+                Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
+                        .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
+                user.setRole(studentRole);
+                user.setSchool(school);
+
+                Student student = new Student();
+                student.setRollNo(rollNo);
+                student.setName(name);
+                student.setEmail(email);
+                student.setClassGrade(classGrade);
+                student.setSchool(school);
+                student.setAttendance("0");
+                student.setApprovalStatus("APPROVED");
+
+                users.add(user);
+                students.add(student);
+
+                String subject = "Student Registration - Awaiting Approval";
+                String body = String.format("Dear %s,\n\nYour registration is pending approval.\n" +
+                                "Username/RollNo: %s\nPassword: %s\nSchool: %s\nClass: %s\n\n" +
+                                "You will be notified once your registration is approved.\n\nRegards,\nTeam",
+                        name, rollNo, rawPassword, school.getName(), classGrade);
+                emailService.sendEmail(email, subject, body);
+            }
+
+            userRepository.saveAll(users);
+            studentRepo.saveAll(students);
+        } catch (CsvValidationException e) {
+            throw new Exception("Error reading CSV file: " + e.getMessage());
+        }
     }
 }

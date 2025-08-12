@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -77,4 +78,17 @@ public class StudentController {
         Student student = studentService.findByRollNo(username);
         return student.getAttendance();
     }
+
+
+    @PostMapping("/bulk-upload/{schoolId}")
+    @PreAuthorize("hasAuthority('STUDENT_CREATE')")
+    public ResponseEntity<String> bulkUploadStudents(@PathVariable Long schoolId, @RequestParam("file") MultipartFile file) {
+        try {
+            studentService.bulkUploadStudents(schoolId, file);
+            return ResponseEntity.ok("Bulk upload successful. Students registered and awaiting approval.");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Bulk upload failed: " + e.getMessage());
+        }
+    }
+
 }
