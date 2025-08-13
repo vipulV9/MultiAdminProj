@@ -121,4 +121,33 @@ public class UserService {
         user.setRole(existingRole);
         return userRepository.save(user);
     }
+
+    public User updateOwnProfile(UpdateUserProfileRequest request) {
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findById(currentUsername)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+
+        // Update username if provided, not blank, and different
+        if (request.getUsername() != null && !request.getUsername().isBlank()
+                && !request.getUsername().equals(currentUsername)) {
+            if (userRepository.existsById(request.getUsername())) {
+                throw new IllegalArgumentException("Username already taken.");
+            }
+            userRepository.deleteById(currentUsername); // Remove old record (PK change)
+            user.setUsername(request.getUsername());
+        }
+
+        // Update email if provided and not blank
+        if (request.getEmail() != null && !request.getEmail().isBlank()) {
+            user.setEmail(request.getEmail());
+        }
+
+        // Update password if provided and not blank
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+
+        // Save user (with possible new username)
+        return userRepository.save(user);
+    }
 }

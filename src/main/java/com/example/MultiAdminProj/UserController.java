@@ -50,4 +50,10 @@ public class UserController {
     public User updateUserRole(@RequestBody Role role, @PathVariable String username) {
         return userService.updateUserRole(username, role);
     }
+
+    @PatchMapping("/me")
+    public ResponseEntity<User> updateOwnProfile(@RequestBody UpdateUserProfileRequest updateRequest) {
+        User updatedUser = userService.updateOwnProfile(updateRequest);
+        return ResponseEntity.ok(updatedUser);
+    }
 }
