@@ -46,7 +46,7 @@ public class UserController {
     }
 
     @PutMapping("/{username}")
-    @PreAuthorize("hasAuthority('ADMIN_UPDATE')")
+    @PreAuthorize("hasAuthority('ROLE_UPDATE')")
     public User updateUserRole(@RequestBody Role role, @PathVariable String username) {
         return userService.updateUserRole(username, role);
     }

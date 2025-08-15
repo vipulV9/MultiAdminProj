@@ -106,7 +106,7 @@ public class UserService {
         }
 
         // Ensure the role belongs to the same school as the user
-        if (!role.getSchool().equals(user.getSchool())) {
+        if (!role.getSchool().getId().equals(user.getSchool().getId())) {
             throw new IllegalArgumentException("Role must belong to the same school as the user");
         }
 
