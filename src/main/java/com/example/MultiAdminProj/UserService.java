@@ -86,7 +86,6 @@ public class UserService {
         if (!user.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot delete user from a different school");
         }
-
         userRepository.deleteById(username);
     }
 
