@@ -129,8 +129,9 @@ public class StudentService {
         emailService.sendEmail(student.getEmail(),
                 "Registration Approved",
                 String.format("Dear %s,\n\nYour registration has been approved.\n" +
-                                "Username/RollNo: %s\n\nYou can now log in to the system.\n\nRegards,\nTeam",
-                        student.getName(), rollNo));
+                                "Username/RollNo: %s\nPassword: %s\nSchool: %s\nClass: %s\n\n" +
+                                "You can now log in to the system.\n\nRegards,\nTeam",
+                        student.getName(), rollNo, rawPassword, school.getName(), request.getClassGrade()));
 
         return student;
     }
