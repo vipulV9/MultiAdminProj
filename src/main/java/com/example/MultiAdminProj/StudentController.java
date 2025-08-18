@@ -7,7 +7,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/students")
@@ -58,6 +60,7 @@ public class StudentController {
         studentService.delete(rollNo);
     }
 
+
     @PutMapping("/{rollNo}")
     @PreAuthorize("hasAuthority('STUDENT_UPDATE')")
     public Student update(@PathVariable String rollNo, @RequestBody Student student) {
@@ -82,13 +85,27 @@ public class StudentController {
 
     @PostMapping("/bulk-upload/{schoolId}")
     @PreAuthorize("hasAuthority('STUDENT_CREATE')")
-    public ResponseEntity<String> bulkUploadStudents(@PathVariable Long schoolId, @RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Map<String, Object>> bulkUploadStudents(@PathVariable Long schoolId, @RequestParam("file") MultipartFile file) {
         try {
-            studentService.bulkUploadStudents(schoolId, file);
-            return ResponseEntity.ok("Bulk upload successful. Students registered and awaiting approval.");
+            List<BulkUploadResult.UploadRecord> failedRecords = studentService.bulkUploadStudents(schoolId, file);
+
+            // Prepare response
+            Map<String, Object> response = new HashMap<>();
+            if (failedRecords.isEmpty()) {
+                response.put("status", "success");
+                response.put("message", "Bulk upload successful. All students registered and approved.");
+            } else {
+                response.put("status", "partial_success");
+                response.put("message", "Bulk upload completed with some failures.");
+                response.put("failedRecords", failedRecords);
+            }
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Bulk upload failed: " + e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("status", "error");
+            errorResponse.put("message", "Bulk upload failed: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
         }
     }
-
 }

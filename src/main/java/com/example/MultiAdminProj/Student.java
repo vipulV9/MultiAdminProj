@@ -1,5 +1,6 @@
 package com.example.MultiAdminProj;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
@@ -18,6 +19,8 @@ public class Student {
     private String rollNo;
 
     private String name;
+
+    @Column(unique = true)
     private String email;
     private String classGrade;
     private String attendance;

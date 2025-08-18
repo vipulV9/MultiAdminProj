@@ -70,8 +70,8 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Return only users from the same school
-        return userRepository.findBySchool(currentUser.getSchool());
+        // Return only non-student users from the same school
+        return userRepository.findBySchoolAndRoleNameNot(currentUser.getSchool(), "STUDENT");
     }
 
     public void delete(String username) {

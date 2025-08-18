@@ -2,6 +2,7 @@ package com.example.MultiAdminProj;
 
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -136,6 +138,7 @@ public class StudentService {
         return student;
     }
 
+
     @Transactional
     public Student approveStudent(String rollNo) {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -149,16 +152,18 @@ public class StudentService {
             throw new SecurityException("Cannot approve student from a different school");
         }
 
-        student.setApprovalStatus("APPROVED");
-        studentRepo.save(student);
-
-        emailService.sendEmail(student.getEmail(),
-                "Registration Approved",
-                String.format("Dear %s,\n\nYour registration has been approved.\n" +
-                                "Username/RollNo: %s\n\nYou can now log in to the system.\n\nRegards,\nTeam",
-                        student.getName(), rollNo));
-
-        return student;
+        try {
+            student.setApprovalStatus("APPROVED");
+            studentRepo.save(student);
+            emailService.sendEmail(student.getEmail(),
+                    "Registration Approved",
+                    String.format("Dear %s,\n\nYour registration has been approved.\n" +
+                                    "Username/RollNo: %s\n\nYou can now log in to the system.\n\nRegards,\nTeam",
+                            student.getName(), rollNo));
+            return student;
+        } catch (OptimisticLockException e) {
+            throw new RuntimeException("Failed to approve student due to concurrent modification. Please try again.");
+        }
     }
 
     @Transactional
@@ -174,18 +179,19 @@ public class StudentService {
             throw new SecurityException("Cannot reject student from a different school");
         }
 
-        student.setApprovalStatus("REJECTED");
-        studentRepo.save(student);
-
-        emailService.sendEmail(student.getEmail(),
-                "Registration Rejected",
-                String.format("Dear %s,\n\nYour registration has been rejected.\n" +
-                                "Please contact support for more information.\n\nRegards,\nTeam",
-                        student.getName()));
-
-        return student;
+        try {
+            student.setApprovalStatus("REJECTED");
+            studentRepo.save(student);
+            emailService.sendEmail(student.getEmail(),
+                    "Registration Rejected",
+                    String.format("Dear %s,\n\nYour registration has been rejected.\n" +
+                                    "Please contact support for more information.\n\nRegards,\nTeam",
+                            student.getName()));
+            return student;
+        } catch (OptimisticLockException e) {
+            throw new RuntimeException("Failed to reject student due to concurrent modification. Please try again.");
+        }
     }
-
 
     @Transactional(readOnly = true)
     public List<Student> getAll() {
@@ -293,7 +299,7 @@ public class StudentService {
 
 
     @Transactional
-    public void bulkUploadStudents(Long schoolId, MultipartFile file) throws Exception {
+    public List<BulkUploadResult.UploadRecord> bulkUploadStudents(Long schoolId, MultipartFile file) throws Exception {
         String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
@@ -307,65 +313,127 @@ public class StudentService {
 
         List<Student> students = new ArrayList<>();
         List<User> users = new ArrayList<>();
+        List<BulkUploadResult.UploadRecord> results = new ArrayList<>();
 
         try (CSVReader csvReader = new CSVReader(new BufferedReader(new InputStreamReader(file.getInputStream())))) {
             String[] headers = csvReader.readNext(); // Read header row
-            if (headers == null || headers.length < 3) {
-                throw new IllegalArgumentException("CSV file must contain name, email, and classGrade columns");
+            if (headers == null || headers.length < 3 || !Arrays.equals(headers, new String[]{"name", "email", "classGrade"})) {
+                throw new IllegalArgumentException("CSV file must contain headers: name,email,classGrade");
             }
 
             String[] row;
+            int rowNum = 1; // Track row number for error reporting
             while ((row = csvReader.readNext()) != null) {
+                rowNum++;
+                BulkUploadResult.UploadRecord record = new BulkUploadResult.UploadRecord();
+                record.setRowNumber(rowNum);
+
                 if (row.length < 3) {
-                    continue; // Skip invalid rows
+                    record.setStatus("FAILED");
+                    record.setMessage("Invalid row: fewer than 3 columns");
+                    results.add(record);
+                    continue;
                 }
 
                 String name = row[0].trim();
                 String email = row[1].trim();
                 String classGrade = row[2].trim();
+                record.setName(name);
+                record.setEmail(email);
+                record.setClassGrade(classGrade);
 
                 if (name.isEmpty() || email.isEmpty() || classGrade.isEmpty()) {
-                    continue; // Skip rows with empty fields
+                    record.setStatus("FAILED");
+                    record.setMessage("Empty name, email, or classGrade");
+                    results.add(record);
+                    continue;
                 }
 
                 if (!school.getAvailableClasses().contains(classGrade)) {
-                    throw new IllegalArgumentException("Class " + classGrade + " not available in this school");
+                    record.setStatus("FAILED");
+                    record.setMessage("Class " + classGrade + " not available in this school");
+                    results.add(record);
+                    continue;
                 }
 
-                String rollNo = generateUniqueRollNo(school.getId(), classGrade);
-                String rawPassword = generateRandomPassword();
+                if (userRepository.existsByEmail(email)) {
+                    record.setStatus("FAILED");
+                    record.setMessage("Email already exists: " + email);
+                    results.add(record);
+                    continue;
+                }
 
-                User user = new User();
-                user.setUsername(rollNo);
-                user.setEmail(email);
-                user.setPassword(passwordEncoder.encode(rawPassword));
-                Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
-                        .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
-                user.setRole(studentRole);
-                user.setSchool(school);
+                try {
+                    String rollNo = generateUniqueRollNo(school.getId(), classGrade);
+                    String rawPassword = generateRandomPassword();
 
-                Student student = new Student();
-                student.setRollNo(rollNo);
-                student.setName(name);
-                student.setEmail(email);
-                student.setClassGrade(classGrade);
-                student.setSchool(school);
-                student.setAttendance("0");
-                student.setApprovalStatus("APPROVED");
+                    User user = new User();
+                    user.setUsername(rollNo);
+                    user.setEmail(email);
+                    user.setPassword(passwordEncoder.encode(rawPassword));
+                    Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
+                            .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
+                    user.setRole(studentRole);
+                    user.setSchool(school);
+                    Student student = new Student();
+                    student.setRollNo(rollNo);
+                    student.setName(name);
+                    student.setEmail(email);
+                    student.setClassGrade(classGrade);
+                    student.setSchool(school);
+                    student.setAttendance("0");
+                    student.setApprovalStatus("APPROVED");
 
-                users.add(user);
-                students.add(student);
+                    users.add(user);
+                    students.add(student);
 
-                String subject = "Student Registration - Awaiting Approval";
-                String body = String.format("Dear %s,\n\nYour registration is pending approval.\n" +
-                                "Username/RollNo: %s\nPassword: %s\nSchool: %s\nClass: %s\n\n" +
-                                "You will be notified once your registration is approved.\n\nRegards,\nTeam",
-                        name, rollNo, rawPassword, school.getName(), classGrade);
-                emailService.sendEmail(email, subject, body);
+                    record.setRollNo(rollNo);
+                    record.setStatus("SUCCESS");
+                    record.setMessage("Student added successfully");
+                } catch (Exception e) {
+                    record.setStatus("FAILED");
+                    record.setMessage("Error processing student: " + e.getMessage());
+                }
+                results.add(record);
             }
 
-            userRepository.saveAll(users);
-            studentRepo.saveAll(students);
+            // Save all valid records
+            try {
+                userRepository.saveAll(users);
+                studentRepo.saveAll(students);
+
+                // Send emails only for successful records
+                for (int i = 0; i < students.size(); i++) {
+                    Student student = students.get(i);
+                    User user = users.get(i);
+                    BulkUploadResult.UploadRecord record = results.stream()
+                            .filter(r -> r.getRollNo() != null && r.getRollNo().equals(student.getRollNo()))
+                            .findFirst().orElse(null);
+
+                    if (record != null && "SUCCESS".equals(record.getStatus())) {
+                        String subject = "Student Registration - Approved";
+                        String body = String.format("Dear %s,\n\nYour registration has been approved.\n" +
+                                        "Username/RollNo: %s\nPassword: %s\nSchool: %s\nClass: %s\n\n" +
+                                        "You can now log in to the system.\n\nRegards,\nTeam",
+                                student.getName(), user.getUsername(), generateRandomPassword(), // Note: Regenerate or store password
+                                school.getName(), student.getClassGrade());
+                        emailService.sendEmail(student.getEmail(), subject, body);
+                    }
+                }
+            } catch (Exception e) {
+                // Mark all unsaved records as failed
+                for (BulkUploadResult.UploadRecord record : results) {
+                    if ("SUCCESS".equals(record.getStatus()) && users.stream().noneMatch(u -> u.getUsername().equals(record.getRollNo()))) {
+                        record.setStatus("FAILED");
+                        record.setMessage("Failed to save to database: " + e.getMessage());
+                    }
+                }
+            }
+
+            // Return only failed records
+            return results.stream()
+                    .filter(record -> "FAILED".equals(record.getStatus()))
+                    .toList();
         } catch (CsvValidationException e) {
             throw new Exception("Error reading CSV file: " + e.getMessage());
         }

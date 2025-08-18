@@ -54,7 +54,6 @@ public class SubjectService {
 
         subjectRepo.save(newSubject);
         subjectRepo.deleteById(oldCode);
-
         return newSubject;
     }
 }

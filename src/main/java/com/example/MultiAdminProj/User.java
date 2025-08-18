@@ -19,6 +19,8 @@ public class User {
     @Id
     private String username;
     private String password;
+
+    @Column(unique = true)
     private String email;
 
     @CreationTimestamp

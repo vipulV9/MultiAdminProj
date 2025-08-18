@@ -16,10 +16,13 @@ public class UserController {
     private UserService userService;
 
     @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
     private EmailService emailService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN_CREATE')")
+    @PreAuthorize("hasAuthority('USER_CREATE')")
     public User create(@RequestBody User user) {
         String rawPassword = user.getPassword();
         User savedUser = userService.saveUser(user);
@@ -34,13 +37,13 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('ADMIN_READ')")
+    @PreAuthorize("hasAuthority('USER_READ')")
     public List<User> getAll() {
         return userService.getAll();
     }
 
     @DeleteMapping("/{username}")
-    @PreAuthorize("hasAuthority('ADMIN_DELETE')")
+    @PreAuthorize("hasAuthority('USER_DELETE')")
     public void delete(@PathVariable String username) {
         userService.delete(username);
     }
