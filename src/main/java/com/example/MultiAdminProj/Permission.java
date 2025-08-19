@@ -1,6 +1,10 @@
 package com.example.MultiAdminProj;
 
 public enum Permission {
+    ADMIN_CREATE,
+    ADMIN_READ,
+    ADMIN_UPDATE,
+    ADMIN_DELETE,
     ROLE_CREATE,
     ROLE_UPDATE,
     ROLE_READ,
@@ -14,10 +18,6 @@ public enum Permission {
     SUBJECT_READ,
     SUBJECT_UPDATE,
     SUBJECT_DELETE,
-    ADMIN_CREATE,
-    ADMIN_READ,
-    ADMIN_UPDATE,
-    ADMIN_DELETE,
     SCHOOL_CREATE,
     SCHOOL_READ,
     SCHOOL_DELETE,

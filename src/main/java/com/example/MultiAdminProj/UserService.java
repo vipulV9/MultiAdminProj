@@ -1,4 +1,5 @@
 package com.example.MultiAdminProj;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -7,8 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
-
-
 
 @Service
 public class UserService {
@@ -28,8 +27,6 @@ public class UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
-        System.out.println("Authenticated user: " + username + ", School ID: " + currentUser.getSchool().getId());
-        System.out.println("User school ID: " + user.getSchool().getId() + ", Role school ID: " + user.getRole().getSchool().getId());
 
         Role roleToAssign = user.getRole();
         if (roleToAssign != null) {
@@ -37,16 +34,17 @@ public class UserService {
                 throw new IllegalArgumentException("Cannot create student user via this endpoint. Use /students/register or /students/add.");
             }
 
-            // Ensure the role belongs to the same school as the user
             if (!roleToAssign.getSchool().getId().equals(user.getSchool().getId())) {
                 throw new IllegalArgumentException("Role must belong to the same school as the user");
             }
 
-            // Fetch the existing role from the database
             Role existingRole = roleRepository.findByNameAndSchool(roleToAssign.getName(), user.getSchool())
                     .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleToAssign.getName()));
 
-            // Check permissions of the existing role
+            if (existingRole.getLevel() > currentUser.getRole().getLevel()) {
+                throw new SecurityException("Cannot assign a role with a higher privilege level");
+            }
+
             Set<Permission> userPermissions = currentUser.getRole().getPermissions();
             if (existingRole.getPermissions() != null) {
                 for (Permission permission : existingRole.getPermissions()) {
@@ -70,7 +68,6 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Return only non-student users from the same school
         return userRepository.findBySchoolAndRoleNameNot(currentUser.getSchool(), "STUDENT");
     }
 
@@ -82,7 +79,6 @@ public class UserService {
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-        // Ensure the user belongs to the same school
         if (!user.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot delete user from a different school");
         }
@@ -95,25 +91,36 @@ public class UserService {
         User currentUser = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
+        int currentUserRoleLevel = currentUser.getRole().getLevel();
         Set<Permission> userPermissions = currentUser.getRole().getPermissions();
 
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
+        // Prevent updating a user with equal or higher role level
+        if (user.getRole().getLevel() >= currentUserRoleLevel) {
+            throw new SecurityException("Cannot update a user with equal or higher privilege level");
+        }
+
         if ("STUDENT".equalsIgnoreCase(role.getName())) {
             throw new IllegalArgumentException("Cannot assign STUDENT role via this endpoint. Use /students/register or /students/add.");
         }
 
-        // Ensure the role belongs to the same school as the user
         if (!role.getSchool().getId().equals(user.getSchool().getId())) {
             throw new IllegalArgumentException("Role must belong to the same school as the user");
         }
 
         Role existingRole = roleRepository.findByNameAndSchool(role.getName(), user.getSchool())
                 .orElseThrow(() -> new IllegalArgumentException("Role not found: " + role.getName()));
+
+        // Prevent assigning a role with equal or higher level
+        if (existingRole.getLevel() >= currentUserRoleLevel) {
+            throw new SecurityException("Cannot assign a role with equal or higher privilege level");
+        }
+
         for (Permission permission : existingRole.getPermissions()) {
             if (!userPermissions.contains(permission)) {
-                throw new SecurityException("Cannot assign existing role with permission " + permission + " that you do not have");
+                throw new SecurityException("Cannot assign role with permission " + permission + " that you do not have");
             }
         }
 
@@ -126,7 +133,6 @@ public class UserService {
         User user = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Update username if provided, not blank, and different
         if (request.getUsername() != null && !request.getUsername().isBlank()
                 && !request.getUsername().equals(currentUsername)) {
             if (userRepository.existsById(request.getUsername())) {
@@ -136,17 +142,14 @@ public class UserService {
             user.setUsername(request.getUsername());
         }
 
-        // Update email if provided and not blank
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
             user.setEmail(request.getEmail());
         }
 
-        // Update password if provided and not blank
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
-        // Save user (with possible new username)
         return userRepository.save(user);
     }
 }

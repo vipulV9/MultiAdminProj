@@ -23,6 +23,9 @@ public class Role {
 
     private String name;  // Can be 'ADMIN', 'STUDENT', etc.
 
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private int level;
+
     @ElementCollection(fetch = FetchType.EAGER)
     @Enumerated(EnumType.STRING)
     private Set<Permission> permissions;
