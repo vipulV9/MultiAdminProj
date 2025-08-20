@@ -27,6 +27,8 @@ public class UserService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
+        System.out.println("Authenticated user: " + username + ", School ID: " + currentUser.getSchool().getId());
+        System.out.println("User school ID: " + user.getSchool().getId() + ", Role school ID: " + user.getRole().getSchool().getId());
 
         Role roleToAssign = user.getRole();
         if (roleToAssign != null) {
@@ -34,31 +36,35 @@ public class UserService {
                 throw new IllegalArgumentException("Cannot create student user via this endpoint. Use /students/register or /students/add.");
             }
 
+            // Ensure the role belongs to the same school as the user
             if (!roleToAssign.getSchool().getId().equals(user.getSchool().getId())) {
                 throw new IllegalArgumentException("Role must belong to the same school as the user");
             }
 
+            // Fetch the existing role from the database
             Role existingRole = roleRepository.findByNameAndSchool(roleToAssign.getName(), user.getSchool())
                     .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleToAssign.getName()));
 
-            if (existingRole.getLevel() > currentUser.getRole().getLevel()) {
-                throw new SecurityException("Cannot assign a role with a higher privilege level");
-            }
-
-            Set<Permission> userPermissions = currentUser.getRole().getPermissions();
-            if (existingRole.getPermissions() != null) {
-                for (Permission permission : existingRole.getPermissions()) {
-                    if (!userPermissions.contains(permission)) {
-                        throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
+            // Skip permission check for admins (hierarchyLevel=0)
+            if (currentUser.getHierarchyLevel() > 0) {
+                // Check permissions of the existing role for non-admins
+                Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+                if (existingRole.getPermissions() != null) {
+                    for (Permission permission : existingRole.getPermissions()) {
+                        if (!userPermissions.contains(permission)) {
+                            throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
+                        }
                     }
+                } else {
+                    throw new IllegalArgumentException("Role " + existingRole.getName() + " has no permissions defined");
                 }
-            } else {
-                throw new IllegalArgumentException("Role " + existingRole.getName() + " has no permissions defined");
             }
 
             user.setRole(existingRole);
         }
 
+        // Set hierarchy level: creator's level + 1
+        user.setHierarchyLevel(currentUser.getHierarchyLevel() + 1);
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         return userRepository.save(user);
     }
@@ -68,6 +74,7 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
+        // Return only non-student users from the same school
         return userRepository.findBySchoolAndRoleNameNot(currentUser.getSchool(), "STUDENT");
     }
 
@@ -79,9 +86,16 @@ public class UserService {
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
+        // Ensure the user belongs to the same school
         if (!user.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot delete user from a different school");
         }
+
+        // Check hierarchy level: cannot delete self or users with same/lower hierarchy level
+        if (user.getHierarchyLevel() <= currentUser.getHierarchyLevel()) {
+            throw new SecurityException("Cannot delete user with same or lower hierarchy level");
+        }
+
         userRepository.deleteById(username);
     }
 
@@ -91,21 +105,19 @@ public class UserService {
         User currentUser = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        int currentUserRoleLevel = currentUser.getRole().getLevel();
-        Set<Permission> userPermissions = currentUser.getRole().getPermissions();
-
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-        // Prevent updating a user with equal or higher role level
-        if (user.getRole().getLevel() >= currentUserRoleLevel) {
-            throw new SecurityException("Cannot update a user with equal or higher privilege level");
+        // Check hierarchy level: cannot update self or users with same/lower hierarchy level
+        if (user.getHierarchyLevel() <= currentUser.getHierarchyLevel()) {
+            throw new SecurityException("Cannot update user with same or lower hierarchy level");
         }
 
         if ("STUDENT".equalsIgnoreCase(role.getName())) {
             throw new IllegalArgumentException("Cannot assign STUDENT role via this endpoint. Use /students/register or /students/add.");
         }
 
+        // Ensure the role belongs to the same school as the user
         if (!role.getSchool().getId().equals(user.getSchool().getId())) {
             throw new IllegalArgumentException("Role must belong to the same school as the user");
         }
@@ -113,14 +125,19 @@ public class UserService {
         Role existingRole = roleRepository.findByNameAndSchool(role.getName(), user.getSchool())
                 .orElseThrow(() -> new IllegalArgumentException("Role not found: " + role.getName()));
 
-        // Prevent assigning a role with equal or higher level
-        if (existingRole.getLevel() >= currentUserRoleLevel) {
-            throw new SecurityException("Cannot assign a role with equal or higher privilege level");
+        // Prevent assigning a role that would imply a hierarchy level <= current user's
+        // Skip for admins (hierarchyLevel=0)
+        if (currentUser.getHierarchyLevel() > 0 && "ADMIN".equalsIgnoreCase(existingRole.getName())) {
+            throw new SecurityException("Cannot assign ADMIN role as it requires hierarchy level 0");
         }
 
-        for (Permission permission : existingRole.getPermissions()) {
-            if (!userPermissions.contains(permission)) {
-                throw new SecurityException("Cannot assign role with permission " + permission + " that you do not have");
+        // Skip permission check for admins (hierarchyLevel=0)
+        if (currentUser.getHierarchyLevel() > 0) {
+            Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+            for (Permission permission : existingRole.getPermissions()) {
+                if (!userPermissions.contains(permission)) {
+                    throw new SecurityException("Cannot assign existing role with permission " + permission + " that you do not have");
+                }
             }
         }
 
@@ -133,6 +150,7 @@ public class UserService {
         User user = userRepository.findById(currentUsername)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
+        // Update username if provided, not blank, and different
         if (request.getUsername() != null && !request.getUsername().isBlank()
                 && !request.getUsername().equals(currentUsername)) {
             if (userRepository.existsById(request.getUsername())) {
@@ -142,14 +160,17 @@ public class UserService {
             user.setUsername(request.getUsername());
         }
 
+        // Update email if provided and not blank
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
             user.setEmail(request.getEmail());
         }
 
+        // Update password if provided and not blank
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
 
+        // Save user (with possible new username)
         return userRepository.save(user);
     }
 }

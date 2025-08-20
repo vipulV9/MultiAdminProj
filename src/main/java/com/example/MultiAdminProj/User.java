@@ -33,4 +33,8 @@ public class User {
 
     @ManyToOne
     private School school;
+
+
+    @Column(nullable = false)
+    private Integer hierarchyLevel;
 }

@@ -49,6 +49,7 @@ public class StudentService {
         user.setUsername(rollNo);
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setHierarchyLevel(1000); // Set hierarchyLevel for student
 
         Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
                 .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
@@ -69,9 +70,8 @@ public class StudentService {
 
         String subject = "Student Registration - Awaiting Approval";
         String body = String.format("Dear %s,\n\nYour registration is pending approval.\n" +
-                        "Username/RollNo: %s\nPassword: %s\nSchool: %s\nClass: %s\n\n" +
                         "You will be notified once your registration is approved.\n\nRegards,\nTeam",
-                request.getName(), rollNo, rawPassword, school.getName(), request.getClassGrade());
+                request.getName());
         emailService.sendEmail(request.getEmail(), subject, body);
 
         return rollNo;
@@ -95,7 +95,7 @@ public class StudentService {
 
         // Validate class grade
         if (!school.getAvailableClasses().contains(request.getClassGrade())) {
-            throw new IllegalArgumentException("Class " + request.getClassGrade() + " not available in this school");
+            throw new IllegalArgumentException("Class " + request.getClassGrade() + " not available in this school. Valid classes: " + school.getAvailableClasses());
         }
 
         // Generate roll number and password
@@ -108,6 +108,7 @@ public class StudentService {
         user.setSchool(school);
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(rawPassword));
+        user.setHierarchyLevel(1000); // Set hierarchyLevel for student
 
         Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
                 .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
@@ -300,19 +301,11 @@ public class StudentService {
 
     @Transactional
     public List<BulkUploadResult.UploadRecord> bulkUploadStudents(Long schoolId, MultipartFile file) throws Exception {
-        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findById(currentUsername)
-                .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
-
         School school = schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new IllegalArgumentException("School not found with ID: " + schoolId));
 
-        if (!school.equals(currentUser.getSchool())) {
-            throw new SecurityException("Cannot upload students to a different school");
-        }
-
-        List<Student> students = new ArrayList<>();
         List<User> users = new ArrayList<>();
+        List<Student> students = new ArrayList<>();
         List<BulkUploadResult.UploadRecord> results = new ArrayList<>();
 
         try (CSVReader csvReader = new CSVReader(new BufferedReader(new InputStreamReader(file.getInputStream())))) {
@@ -371,6 +364,7 @@ public class StudentService {
                     user.setUsername(rollNo);
                     user.setEmail(email);
                     user.setPassword(passwordEncoder.encode(rawPassword));
+                    user.setHierarchyLevel(1000); // Set hierarchyLevel for student
                     Role studentRole = roleRepository.findByNameAndSchool("STUDENT", school)
                             .orElseThrow(() -> new RuntimeException("Student role not found for school: " + school.getName()));
                     user.setRole(studentRole);
@@ -402,7 +396,6 @@ public class StudentService {
                 userRepository.saveAll(users);
                 studentRepo.saveAll(students);
 
-                // Send emails only for successful records
                 for (int i = 0; i < students.size(); i++) {
                     Student student = students.get(i);
                     User user = users.get(i);
@@ -438,4 +431,5 @@ public class StudentService {
             throw new Exception("Error reading CSV file: " + e.getMessage());
         }
     }
+
 }

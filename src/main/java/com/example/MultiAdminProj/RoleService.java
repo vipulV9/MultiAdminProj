@@ -23,32 +23,34 @@ public class RoleService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
+        // Ensure the role is associated with a school
         if (role.getSchool() == null || role.getSchool().getId() == null) {
             throw new IllegalArgumentException("Role must be associated with a school");
         }
 
+        // Verify the school exists
         School school = schoolRepository.findById(role.getSchool().getId())
                 .orElseThrow(() -> new IllegalArgumentException("School not found: " + role.getSchool().getId()));
 
+        // Ensure the current user belongs to the same school as the role
         if (!school.equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot create role for a different school");
         }
 
-        if (role.getLevel() > currentUser.getRole().getLevel()) {
-            throw new SecurityException("Cannot create a role with a higher privilege level");
-        }
-
+        // Check for existing role with the same name and school
         if (roleRepo.findByNameAndSchool(role.getName(), school).isPresent()) {
             throw new IllegalArgumentException("Role with name " + role.getName() + " already exists for this school");
         }
 
         Set<Permission> userPermissions = currentUser.getRole().getPermissions();
+
         for (Permission permission : role.getPermissions()) {
             if (!userPermissions.contains(permission)) {
                 throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
             }
         }
 
+        // Set the school for the role
         role.setSchool(school);
         return roleRepo.save(role);
     }
@@ -61,22 +63,16 @@ public class RoleService {
         Role existingRole = roleRepo.findByNameAndSchool(roleName, currentUser.getSchool())
                 .orElseThrow(() -> new IllegalArgumentException("Role not found: " + roleName));
 
+        // Ensure user is updating a role within their own school
         if (!existingRole.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot update role from a different school");
-        }
-
-        if (updatedRole.getLevel() > currentUser.getRole().getLevel()) {
-            throw new SecurityException("Cannot update role to a higher privilege level");
-        }
-
-        if (existingRole.getLevel() > currentUser.getRole().getLevel()) {
-            throw new SecurityException("Cannot update a role with a higher privilege level");
         }
 
         if (!currentUser.getRole().getPermissions().contains(Permission.ROLE_CREATE)) {
             throw new SecurityException("You do not have permission to update roles");
         }
 
+        // Ensure the user is not assigning permissions they don't have
         Set<Permission> userPermissions = currentUser.getRole().getPermissions();
         for (Permission permission : updatedRole.getPermissions()) {
             if (!userPermissions.contains(permission)) {
@@ -84,8 +80,8 @@ public class RoleService {
             }
         }
 
+        // Update the existing role
         existingRole.setPermissions(updatedRole.getPermissions());
-        existingRole.setLevel(updatedRole.getLevel()); // Update level if provided
         return roleRepo.save(existingRole);
     }
 

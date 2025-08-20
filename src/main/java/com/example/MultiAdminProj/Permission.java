@@ -1,10 +1,6 @@
 package com.example.MultiAdminProj;
 
 public enum Permission {
-    ADMIN_CREATE,
-    ADMIN_READ,
-    ADMIN_UPDATE,
-    ADMIN_DELETE,
     ROLE_CREATE,
     ROLE_UPDATE,
     ROLE_READ,
