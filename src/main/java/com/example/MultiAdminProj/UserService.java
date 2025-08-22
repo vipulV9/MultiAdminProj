@@ -6,6 +6,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -74,8 +75,8 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Return only non-student users from the same school
-        return userRepository.findBySchoolAndRoleNameNot(currentUser.getSchool(), "STUDENT");
+        // Return only non-student and non-admin users from the same school
+        return userRepository.findBySchoolAndRoleNameNotIn(currentUser.getSchool(), Arrays.asList("STUDENT", "ADMIN"));
     }
 
     public void delete(String username) {

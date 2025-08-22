@@ -154,13 +154,27 @@ public class StudentService {
         }
 
         try {
+            // Generate a new password
+            String rawPassword = generateRandomPassword();
+
+            // Update the User entity with the new password
+            User user = userRepository.findById(rollNo)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            user.setPassword(passwordEncoder.encode(rawPassword));
+            userRepository.save(user);
+
+            // Update student approval status
             student.setApprovalStatus("APPROVED");
             studentRepo.save(student);
+
+            // Send approval email with the new password
             emailService.sendEmail(student.getEmail(),
                     "Registration Approved",
                     String.format("Dear %s,\n\nYour registration has been approved.\n" +
-                                    "Username/RollNo: %s\n\nYou can now log in to the system.\n\nRegards,\nTeam",
-                            student.getName(), rollNo));
+                                    "Username/RollNo: %s\nPassword: %s\n\n" +
+                                    "You can now log in to the system.\n\nRegards,\nTeam",
+                            student.getName(), rollNo, rawPassword));
+
             return student;
         } catch (OptimisticLockException e) {
             throw new RuntimeException("Failed to approve student due to concurrent modification. Please try again.");
