@@ -42,7 +42,8 @@ public class AuthController {
         User user = userRepository.findById(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Long schoolId = user.getSchool() != null ? user.getSchool().getId() : null;
-        String token = jwtUtil.generateToken(userDetails, schoolId);
+        Integer hierarchyLevel = user.getHierarchyLevel();
+        String token = jwtUtil.generateToken(userDetails, schoolId, hierarchyLevel);
 
         return ResponseEntity.ok(Map.of("token", token));
     }

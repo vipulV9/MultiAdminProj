@@ -24,17 +24,20 @@ public class JwtUtil {
 
     private final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
 
+
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     }
 
-    public String generateToken(UserDetails userDetails, Long schoolId) {
+    public String generateToken(UserDetails userDetails, Long schoolId, Integer hierarchyLevel) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("authorities", userDetails.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
         claims.put("schoolId", schoolId);
+        claims.put("hierarchyLevel", hierarchyLevel);
 
         return Jwts.builder()
                 .claims(claims)
@@ -60,6 +63,10 @@ public class JwtUtil {
 
     public Long extractSchoolId(String token) {
         return extractAllClaims(token).get("schoolId", Long.class);
+    }
+
+    public Integer extractHierarchyLevel(String token) {
+        return extractAllClaims(token).get("hierarchyLevel", Integer.class);
     }
 
     public Claims extractAllClaims(String token) {
