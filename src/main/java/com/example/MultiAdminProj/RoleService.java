@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class RoleService {
@@ -91,8 +92,17 @@ public class RoleService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Return only roles associated with the user's school
-        return roleRepo.findBySchool(currentUser.getSchool());
+        // Get all roles associated with the user's school
+        List<Role> roles = roleRepo.findBySchool(currentUser.getSchool());
+
+        // If the user is not an ADMIN, filter out the ADMIN role
+        if (!"ADMIN".equalsIgnoreCase(currentUser.getRole().getName())) {
+            roles = roles.stream()
+                    .filter(role -> !"ADMIN".equalsIgnoreCase(role.getName()))
+                    .collect(Collectors.toList());
+        }
+
+        return roles;
     }
 
     public void delete(String name) {
