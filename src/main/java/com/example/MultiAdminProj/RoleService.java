@@ -95,12 +95,15 @@ public class RoleService {
         // Get all roles associated with the user's school
         List<Role> roles = roleRepo.findBySchool(currentUser.getSchool());
 
-        // If the user is not an ADMIN, filter out the ADMIN role
-        if (!"ADMIN".equalsIgnoreCase(currentUser.getRole().getName())) {
-            roles = roles.stream()
-                    .filter(role -> !"ADMIN".equalsIgnoreCase(role.getName()))
-                    .collect(Collectors.toList());
-        }
+        // Filter roles based on user role
+        String userRoleName = currentUser.getRole().getName();
+        boolean isAdmin = "ADMIN".equalsIgnoreCase(userRoleName);
+
+        roles = roles.stream()
+                .filter(role -> !"STUDENT".equalsIgnoreCase(role.getName())) // Always exclude STUDENT
+                .filter(role -> isAdmin || !"ADMIN".equalsIgnoreCase(role.getName())) // Exclude ADMIN for non-admins
+                .filter(role -> !userRoleName.equalsIgnoreCase(role.getName())) // Exclude the user's own role
+                .collect(Collectors.toList());
 
         return roles;
     }
