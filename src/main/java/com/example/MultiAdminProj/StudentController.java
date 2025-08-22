@@ -88,7 +88,6 @@ public class StudentController {
     public ResponseEntity<Map<String, Object>> bulkUploadStudents(@PathVariable Long schoolId, @RequestParam("file") MultipartFile file) {
         try {
             List<BulkUploadResult.UploadRecord> failedRecords = studentService.bulkUploadStudents(schoolId, file);
-
             // Prepare response
             Map<String, Object> response = new HashMap<>();
             if (failedRecords.isEmpty()) {

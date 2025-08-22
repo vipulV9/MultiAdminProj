@@ -75,8 +75,12 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // Return only non-student and non-admin users from the same school
-        return userRepository.findBySchoolAndRoleNameNotIn(currentUser.getSchool(), Arrays.asList("STUDENT", "ADMIN"));
+        // If the user is an ADMIN, exclude only STUDENT roles; otherwise, exclude both STUDENT and ADMIN roles
+        List<String> rolesToExclude = "ADMIN".equalsIgnoreCase(currentUser.getRole().getName())
+                ? Arrays.asList("STUDENT")
+                : Arrays.asList("STUDENT", "ADMIN");
+
+        return userRepository.findBySchoolAndRoleNameNotIn(currentUser.getSchool(), rolesToExclude);
     }
 
     public void delete(String username) {
