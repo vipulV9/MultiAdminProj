@@ -3,6 +3,7 @@ package com.example.MultiAdminProj;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Set;
@@ -47,7 +48,7 @@ public class RoleService {
 
         for (Permission permission : role.getPermissions()) {
             if (!userPermissions.contains(permission)) {
-                throw new SecurityException("Cannot assign permission " + permission + " that user does not have");
+                throw new SecurityException("Cannot assign permission" + permission + " that user does not have");
             }
         }
 
@@ -108,6 +109,7 @@ public class RoleService {
         return roles;
     }
 
+    @Transactional
     public void delete(String name) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findById(username)
@@ -116,10 +118,30 @@ public class RoleService {
         Role role = roleRepo.findByNameAndSchool(name, currentUser.getSchool())
                 .orElseThrow(() -> new IllegalArgumentException("Role not found: " + name));
 
-        // Ensure the role belongs to the user's school (redundant with findByNameAndSchool, but kept for clarity)
+        // Prevent deletion of critical roles
+        if ("ADMIN".equalsIgnoreCase(name) || "STUDENT".equalsIgnoreCase(name)) {
+            throw new SecurityException("Cannot delete critical role: " + name);
+        }
+
+        // Ensure the role belongs to the user's school
         if (!role.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot delete role from a different school");
         }
+
+        // Check if the role is assigned to any users
+        List<User> usersWithRole = userRepository.findByRole(role);
+        if (!usersWithRole.isEmpty()) {
+            // Check if any user with this role has equal or higher privilege
+            for (User user : usersWithRole) {
+                if (user.getHierarchyLevel() <= currentUser.getHierarchyLevel()) {
+                    throw new SecurityException("Cannot delete role assigned to users with equal or higher privilege (hierarchy level: " + user.getHierarchyLevel() + ")");
+                }
+            }
+            throw new IllegalStateException("Cannot delete role '" + name + "' because it is assigned to " + usersWithRole.size() + " user(s)");
+        }
+
+        // Log the deletion attempt
+        System.out.println("User " + username + " deleted role " + name + " in school " + currentUser.getSchool().getId());
 
         roleRepo.deleteById(role.getId());
     }

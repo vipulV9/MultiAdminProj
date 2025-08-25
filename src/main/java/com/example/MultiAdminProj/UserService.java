@@ -75,7 +75,6 @@ public class UserService {
         User currentUser = userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("Authenticated user not found"));
 
-        // If the user is an ADMIN, exclude only STUDENT roles; otherwise, exclude both STUDENT and ADMIN roles
         List<String> rolesToExclude = "ADMIN".equalsIgnoreCase(currentUser.getRole().getName())
                 ? Arrays.asList("STUDENT")
                 : Arrays.asList("STUDENT", "ADMIN");
@@ -91,12 +90,10 @@ public class UserService {
         User user = userRepository.findById(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-        // Ensure the user belongs to the same school
         if (!user.getSchool().equals(currentUser.getSchool())) {
             throw new SecurityException("Cannot delete user from a different school");
         }
 
-        // Check hierarchy level: cannot delete self or users with same/lower hierarchy level
         if (user.getHierarchyLevel() <= currentUser.getHierarchyLevel()) {
             throw new SecurityException("Cannot delete user with same or lower hierarchy level");
         }

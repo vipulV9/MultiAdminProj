@@ -37,4 +37,5 @@ public class User {
 
     @Column(nullable = false)
     private Integer hierarchyLevel;
+
 }
